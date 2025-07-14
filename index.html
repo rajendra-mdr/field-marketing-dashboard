@@ -16,8 +16,8 @@
     <script type="text/babel">
         // Configuration - REPLACE WITH YOUR VALUES
         const CONFIG = {
-            GOOGLE_APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbze2Qr1bnT3huCE_Osx9PXEDML5zKnIScPFKWV5kYtgkSFTC6jSJ4baD6iO1WggmuVYKA/exec', // Replace with your Apps Script URL
-            SHEET_ID: '1RF1DIuxmNV9L8tYDDA-2B4gCWkSoG-1Iilm3mlgxTn8/edit?gid=0#gid=0' // Replace with your Google Sheet ID (optional, for reference)
+            GOOGLE_APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbze2Qr1bnT3huCE_Osx9PXEDML5zKnIScPFKWV5kYtgkSFTC6jSJ4baD6iO1WggmuVYKA/exec',
+            SHEET_ID: '1RF1DIuxmNV9L8tYDDA-2B4gCWkSoG-1Iilm3mlgxTn8'
         };
 
         const { useState, useEffect } = React;
@@ -45,63 +45,6 @@
             const [newPharmacy, setNewPharmacy] = useState({ name: '', location: '', status: 'visited' });
             const [newOrder, setNewOrder] = useState({ item: '', quantity: '', location: '' });
             const [newReturn, setNewReturn] = useState({ item: '', quantity: '', reason: '' });
-
-            // Load data from Google Sheets
-            const loadEntries = async () => {
-                if (!CONFIG.GOOGLE_APPS_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
-                    setLoading(true);
-                    try {
-                        const response = await fetch(CONFIG.GOOGLE_APPS_SCRIPT_URL);
-                        const data = await response.json();
-                        
-                        if (Array.isArray(data)) {
-                            // Convert sheet data back to app format
-                            const formattedEntries = data.map((row, index) => ({
-                                id: index + 1,
-                                date: row.Date,
-                                officerName: row['Officer Name'],
-                                plannedAreas: row['Planned Areas'],
-                                actualAreas: row['Actual Areas'],
-                                doctorsVisited: row['Doctors Visited'] ? row['Doctors Visited'].split('; ').map(d => ({ name: d })) : [],
-                                pharmaciesVisited: row['Pharmacies Visited'] ? row['Pharmacies Visited'].split('; ').map(p => ({ name: p })) : [],
-                                orders: row['Orders'] ? row['Orders'].split('; ').map(o => ({ item: o })) : [],
-                                returns: row['Returns'] ? row['Returns'].split('; ').map(r => ({ item: r })) : [],
-                                notes: row['Notes'] || '',
-                                timestamp: row['Timestamp']
-                            }));
-                            setEntries(formattedEntries);
-                        }
-                    } catch (error) {
-                        console.error('Error loading data:', error);
-                        setMessage('Error loading data from Google Sheets');
-                    }
-                    setLoading(false);
-                }
-            };
-
-            // Save data to Google Sheets
-            const saveToGoogleSheets = async (entryData) => {
-                try {
-                    const response = await fetch(CONFIG.GOOGLE_APPS_SCRIPT_URL, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(entryData)
-                    });
-                    
-                    const result = await response.json();
-                    return result.success;
-                } catch (error) {
-                    console.error('Error saving to Google Sheets:', error);
-                    return false;
-                }
-            };
-
-            // Load entries on component mount
-            useEffect(() => {
-                loadEntries();
-            }, []);
 
             const showMessage = (msg, type = 'success') => {
                 setMessage(msg);
@@ -163,25 +106,38 @@
                     showMessage('Entry saved locally! Configure Google Sheets for permanent storage.', 'warning');
                 } else {
                     // Save to Google Sheets
-                    const success = await saveToGoogleSheets(currentEntry);
-                    
-                    if (success) {
-                        setEntries(prev => [...prev, { ...currentEntry, id: Date.now() }]);
-                        showMessage('Entry saved to Google Sheets successfully!', 'success');
-                        
-                        // Reset form
-                        setCurrentEntry({
-                            date: new Date().toISOString().split('T')[0],
-                            officerName: '',
-                            plannedAreas: '',
-                            actualAreas: '',
-                            doctorsVisited: [],
-                            pharmaciesVisited: [],
-                            orders: [],
-                            returns: [],
-                            notes: ''
+                    try {
+                        const response = await fetch(CONFIG.GOOGLE_APPS_SCRIPT_URL, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(currentEntry)
                         });
-                    } else {
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            setEntries(prev => [...prev, { ...currentEntry, id: Date.now() }]);
+                            showMessage('Entry saved to Google Sheets successfully!', 'success');
+                            
+                            // Reset form
+                            setCurrentEntry({
+                                date: new Date().toISOString().split('T')[0],
+                                officerName: '',
+                                plannedAreas: '',
+                                actualAreas: '',
+                                doctorsVisited: [],
+                                pharmaciesVisited: [],
+                                orders: [],
+                                returns: [],
+                                notes: ''
+                            });
+                        } else {
+                            showMessage('Error saving to Google Sheets. Please try again.', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error saving to Google Sheets:', error);
                         showMessage('Error saving to Google Sheets. Please try again.', 'error');
                     }
                 }
@@ -194,11 +150,6 @@
                     ...prev,
                     [type]: prev[type].filter(item => item.id !== id)
                 }));
-            };
-
-            const refreshData = () => {
-                loadEntries();
-                showMessage('Data refreshed from Google Sheets!', 'success');
             };
 
             return (
@@ -217,13 +168,6 @@
                                             Demo Mode
                                         </div>
                                     )}
-                                    <button
-                                        onClick={refreshData}
-                                        disabled={loading}
-                                        className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors"
-                                    >
-                                        {loading ? 'Loading...' : 'Refresh Data'}
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -639,12 +583,7 @@
                             <div className="bg-white rounded-xl shadow-lg p-6">
                                 <h2 className="text-2xl font-bold text-gray-800 mb-6">Daily Activity Reports</h2>
                                 
-                                {loading ? (
-                                    <div className="text-center py-12">
-                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-                                        <p className="text-gray-500 mt-4">Loading entries from Google Sheets...</p>
-                                    </div>
-                                ) : entries.length === 0 ? (
+                                {entries.length === 0 ? (
                                     <div className="text-center py-12">
                                         <p className="text-gray-500 text-lg">No entries yet. Create your first entry to get started!</p>
                                     </div>
@@ -657,11 +596,6 @@
                                                         <h3 className="text-lg font-semibold text-gray-800">{entry.officerName}</h3>
                                                         <p className="text-gray-600">{entry.date}</p>
                                                     </div>
-                                                    {entry.timestamp && (
-                                                        <p className="text-sm text-gray-500">
-                                                            Submitted: {new Date(entry.timestamp).toLocaleString()}
-                                                        </p>
-                                                    )}
                                                 </div>
                                                 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
