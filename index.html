@@ -47,34 +47,32 @@
 
             // Load data from Google Sheets
             const loadEntries = async () => {
-                if (!CONFIG.GOOGLE_APPS_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
-                    setLoading(true);
-                    try {
-                        const response = await fetch(CONFIG.GOOGLE_APPS_SCRIPT_URL);
-                        const data = await response.json();
-                        
-                        if (Array.isArray(data)) {
-                            const formattedEntries = data.map((row, index) => ({
-                                id: index + 1,
-                                date: row.Date || '',
-                                officerName: row['Officer Name'] || '',
-                                plannedAreas: row['Planned Areas'] || '',
-                                actualAreas: row['Actual Areas'] || '',
-                                doctorsVisited: row['Doctors Visited'] ? row['Doctors Visited'].split('; ').filter(d => d.trim()).map(d => ({ name: d.trim() })) : [],
-                                pharmaciesVisited: row['Pharmacies Visited'] ? row['Pharmacies Visited'].split('; ').filter(p => p.trim()).map(p => ({ name: p.trim() })) : [],
-                                orders: row['Orders'] ? row['Orders'].split('; ').filter(o => o.trim()).map(o => ({ item: o.trim() })) : [],
-                                returns: row['Returns'] ? row['Returns'].split('; ').filter(r => r.trim()).map(r => ({ item: r.trim() })) : [],
-                                notes: row['Notes'] || '',
-                                timestamp: row['Timestamp']
-                            }));
-                            setEntries(formattedEntries);
-                        }
-                    } catch (error) {
-                        console.error('Error loading data:', error);
-                        showMessage('Error loading data from Google Sheets', 'error');
+                setLoading(true);
+                try {
+                    const response = await fetch(CONFIG.GOOGLE_APPS_SCRIPT_URL + '?action=get');
+                    const data = await response.json();
+                    
+                    if (Array.isArray(data)) {
+                        const formattedEntries = data.map((row, index) => ({
+                            id: index + 1,
+                            date: row.Date || '',
+                            officerName: row['Officer Name'] || '',
+                            plannedAreas: row['Planned Areas'] || '',
+                            actualAreas: row['Actual Areas'] || '',
+                            doctorsVisited: row['Doctors Visited'] ? row['Doctors Visited'].split('; ').filter(d => d.trim()).map(d => ({ name: d.trim() })) : [],
+                            pharmaciesVisited: row['Pharmacies Visited'] ? row['Pharmacies Visited'].split('; ').filter(p => p.trim()).map(p => ({ name: p.trim() })) : [],
+                            orders: row['Orders'] ? row['Orders'].split('; ').filter(o => o.trim()).map(o => ({ item: o.trim() })) : [],
+                            returns: row['Returns'] ? row['Returns'].split('; ').filter(r => r.trim()).map(r => ({ item: r.trim() })) : [],
+                            notes: row['Notes'] || '',
+                            timestamp: row['Timestamp']
+                        }));
+                        setEntries(formattedEntries);
                     }
-                    setLoading(false);
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                    showMessage('Error loading data from Google Sheets', 'error');
                 }
+                setLoading(false);
             };
 
             // Load entries on component mount
@@ -141,17 +139,57 @@
                 setSaving(true);
                 
                 try {
+                    // Format the data properly for Google Sheets
+                    const formattedEntry = {
+                        action: 'add',
+                        data: {
+                            Date: currentEntry.date,
+                            'Officer Name': currentEntry.officerName,
+                            'Planned Areas': currentEntry.plannedAreas,
+                            'Actual Areas': currentEntry.actualAreas,
+                            'Doctors Visited': currentEntry.doctorsVisited.map(d => 
+                                `${d.name} (${d.location}${d.specialty ? ', ' + d.specialty : ''}) - ${d.status}`
+                            ).join('; '),
+                            'Pharmacies Visited': currentEntry.pharmaciesVisited.map(p => 
+                                `${p.name} (${p.location}) - ${p.status}`
+                            ).join('; '),
+                            'Orders': currentEntry.orders.map(o => 
+                                `${o.item} - ${o.quantity}${o.location ? ' (' + o.location + ')' : ''}`
+                            ).join('; '),
+                            'Returns': currentEntry.returns.map(r => 
+                                `${r.item} - ${r.quantity}${r.reason ? ' (' + r.reason + ')' : ''}`
+                            ).join('; '),
+                            'Notes': currentEntry.notes,
+                            'Timestamp': new Date().toISOString()
+                        }
+                    };
+
+                    console.log('Sending data:', formattedEntry);
+                    
                     const response = await fetch(CONFIG.GOOGLE_APPS_SCRIPT_URL, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify(currentEntry)
+                        body: JSON.stringify(formattedEntry),
+                        mode: 'cors'
                     });
                     
-                    const result = await response.json();
+                    console.log('Response status:', response.status);
+                    console.log('Response headers:', response.headers);
                     
-                    if (result.success) {
+                    let result;
+                    try {
+                        result = await response.json();
+                        console.log('Response data:', result);
+                    } catch (jsonError) {
+                        console.error('Error parsing JSON:', jsonError);
+                        const textResponse = await response.text();
+                        console.log('Response text:', textResponse);
+                        throw new Error('Invalid JSON response from server');
+                    }
+                    
+                    if (result.success || result.status === 'success') {
                         setEntries(prev => [...prev, { ...currentEntry, id: Date.now() }]);
                         showMessage('Entry saved to Google Sheets successfully!', 'success');
                         
@@ -167,12 +205,16 @@
                             returns: [],
                             notes: ''
                         });
+                        
+                        // Refresh data to show the new entry
+                        loadEntries();
                     } else {
-                        showMessage('Error saving to Google Sheets. Please try again.', 'error');
+                        console.error('Server returned error:', result);
+                        showMessage(result.message || 'Error saving to Google Sheets. Please try again.', 'error');
                     }
                 } catch (error) {
                     console.error('Error saving to Google Sheets:', error);
-                    showMessage('Error saving to Google Sheets. Please try again.', 'error');
+                    showMessage(`Error saving to Google Sheets: ${error.message}`, 'error');
                 }
                 
                 setSaving(false);
