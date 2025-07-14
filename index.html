@@ -14,14 +14,13 @@
     <div id="root"></div>
     
     <script type="text/babel">
-        // Configuration - REPLACE WITH YOUR VALUES
+        // Configuration
         const CONFIG = {
             GOOGLE_APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbze2Qr1bnT3huCE_Osx9PXEDML5zKnIScPFKWV5kYtgkSFTC6jSJ4baD6iO1WggmuVYKA/exec',
             SHEET_ID: '1RF1DIuxmNV9L8tYDDA-2B4gCWkSoG-1Iilm3mlgxTn8'
         };
 
         const { useState, useEffect } = React;
-        const { Calendar, MapPin, User, Phone, Package, Plus, Save, Eye, Search, Filter, CheckCircle, AlertCircle, Clock } = lucide;
 
         const FieldMarketingDashboard = () => {
             const [activeTab, setActiveTab] = useState('entry');
@@ -46,9 +45,51 @@
             const [newOrder, setNewOrder] = useState({ item: '', quantity: '', location: '' });
             const [newReturn, setNewReturn] = useState({ item: '', quantity: '', reason: '' });
 
+            // Load data from Google Sheets
+            const loadEntries = async () => {
+                if (!CONFIG.GOOGLE_APPS_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
+                    setLoading(true);
+                    try {
+                        const response = await fetch(CONFIG.GOOGLE_APPS_SCRIPT_URL);
+                        const data = await response.json();
+                        
+                        if (Array.isArray(data)) {
+                            const formattedEntries = data.map((row, index) => ({
+                                id: index + 1,
+                                date: row.Date || '',
+                                officerName: row['Officer Name'] || '',
+                                plannedAreas: row['Planned Areas'] || '',
+                                actualAreas: row['Actual Areas'] || '',
+                                doctorsVisited: row['Doctors Visited'] ? row['Doctors Visited'].split('; ').filter(d => d.trim()).map(d => ({ name: d.trim() })) : [],
+                                pharmaciesVisited: row['Pharmacies Visited'] ? row['Pharmacies Visited'].split('; ').filter(p => p.trim()).map(p => ({ name: p.trim() })) : [],
+                                orders: row['Orders'] ? row['Orders'].split('; ').filter(o => o.trim()).map(o => ({ item: o.trim() })) : [],
+                                returns: row['Returns'] ? row['Returns'].split('; ').filter(r => r.trim()).map(r => ({ item: r.trim() })) : [],
+                                notes: row['Notes'] || '',
+                                timestamp: row['Timestamp']
+                            }));
+                            setEntries(formattedEntries);
+                        }
+                    } catch (error) {
+                        console.error('Error loading data:', error);
+                        showMessage('Error loading data from Google Sheets', 'error');
+                    }
+                    setLoading(false);
+                }
+            };
+
+            // Load entries on component mount
+            useEffect(() => {
+                loadEntries();
+            }, []);
+
             const showMessage = (msg, type = 'success') => {
                 setMessage(msg);
                 setTimeout(() => setMessage(''), 5000);
+            };
+
+            const refreshData = () => {
+                loadEntries();
+                showMessage('Data refreshed from Google Sheets!', 'success');
             };
 
             const addDoctor = () => {
@@ -99,47 +140,39 @@
 
                 setSaving(true);
                 
-                // Check if Google Sheets is configured
-                if (CONFIG.GOOGLE_APPS_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
-                    // Save locally only (demo mode)
-                    setEntries(prev => [...prev, { ...currentEntry, id: Date.now() }]);
-                    showMessage('Entry saved locally! Configure Google Sheets for permanent storage.', 'warning');
-                } else {
-                    // Save to Google Sheets
-                    try {
-                        const response = await fetch(CONFIG.GOOGLE_APPS_SCRIPT_URL, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify(currentEntry)
+                try {
+                    const response = await fetch(CONFIG.GOOGLE_APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(currentEntry)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        setEntries(prev => [...prev, { ...currentEntry, id: Date.now() }]);
+                        showMessage('Entry saved to Google Sheets successfully!', 'success');
+                        
+                        // Reset form
+                        setCurrentEntry({
+                            date: new Date().toISOString().split('T')[0],
+                            officerName: '',
+                            plannedAreas: '',
+                            actualAreas: '',
+                            doctorsVisited: [],
+                            pharmaciesVisited: [],
+                            orders: [],
+                            returns: [],
+                            notes: ''
                         });
-                        
-                        const result = await response.json();
-                        
-                        if (result.success) {
-                            setEntries(prev => [...prev, { ...currentEntry, id: Date.now() }]);
-                            showMessage('Entry saved to Google Sheets successfully!', 'success');
-                            
-                            // Reset form
-                            setCurrentEntry({
-                                date: new Date().toISOString().split('T')[0],
-                                officerName: '',
-                                plannedAreas: '',
-                                actualAreas: '',
-                                doctorsVisited: [],
-                                pharmaciesVisited: [],
-                                orders: [],
-                                returns: [],
-                                notes: ''
-                            });
-                        } else {
-                            showMessage('Error saving to Google Sheets. Please try again.', 'error');
-                        }
-                    } catch (error) {
-                        console.error('Error saving to Google Sheets:', error);
+                    } else {
                         showMessage('Error saving to Google Sheets. Please try again.', 'error');
                     }
+                } catch (error) {
+                    console.error('Error saving to Google Sheets:', error);
+                    showMessage('Error saving to Google Sheets. Please try again.', 'error');
                 }
                 
                 setSaving(false);
@@ -163,11 +196,13 @@
                                     <p className="text-gray-600">Powered by Google Sheets & GitHub Pages</p>
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                    {CONFIG.GOOGLE_APPS_SCRIPT_URL.includes('YOUR_SCRIPT_ID') && (
-                                        <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
-                                            Demo Mode
-                                        </div>
-                                    )}
+                                    <button
+                                        onClick={refreshData}
+                                        disabled={loading}
+                                        className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                                    >
+                                        {loading ? 'Loading...' : 'Refresh Data'}
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -180,28 +215,11 @@
                                 'bg-green-100 text-green-800'
                             }`}>
                                 <div className="flex items-center">
-                                    {message.includes('Error') ? 
-                                        <AlertCircle className="w-5 h-5 mr-2" /> :
-                                        message.includes('Demo') ? 
-                                        <Clock className="w-5 h-5 mr-2" /> :
-                                        <CheckCircle className="w-5 h-5 mr-2" />
-                                    }
+                                    <span className="w-5 h-5 mr-2">
+                                        {message.includes('Error') ? '⚠️' : 
+                                         message.includes('Demo') ? '⏰' : '✅'}
+                                    </span>
                                     {message}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Setup Warning */}
-                        {CONFIG.GOOGLE_APPS_SCRIPT_URL.includes('YOUR_SCRIPT_ID') && (
-                            <div className="bg-orange-100 border border-orange-300 rounded-lg p-4 mb-6">
-                                <div className="flex items-center">
-                                    <AlertCircle className="w-5 h-5 text-orange-600 mr-2" />
-                                    <div>
-                                        <p className="text-orange-800 font-medium">Setup Required</p>
-                                        <p className="text-orange-700 text-sm">
-                                            Replace the Google Apps Script URL in the code to enable Google Sheets integration.
-                                        </p>
-                                    </div>
                                 </div>
                             </div>
                         )}
@@ -217,8 +235,7 @@
                                             : 'text-gray-600 hover:text-blue-500'
                                     }`}
                                 >
-                                    <Plus className="inline w-5 h-5 mr-2" />
-                                    New Entry
+                                    ➕ New Entry
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('view')}
@@ -228,8 +245,7 @@
                                             : 'text-gray-600 hover:text-blue-500'
                                     }`}
                                 >
-                                    <Eye className="inline w-5 h-5 mr-2" />
-                                    View Entries ({entries.length})
+                                    👁️ View Entries ({entries.length})
                                 </button>
                             </div>
                         </div>
@@ -243,8 +259,7 @@
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            <Calendar className="inline w-4 h-4 mr-1" />
-                                            Date *
+                                            📅 Date *
                                         </label>
                                         <input
                                             type="date"
@@ -256,8 +271,7 @@
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            <User className="inline w-4 h-4 mr-1" />
-                                            Officer Name *
+                                            👤 Officer Name *
                                         </label>
                                         <input
                                             type="text"
@@ -274,8 +288,7 @@
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            <MapPin className="inline w-4 h-4 mr-1" />
-                                            Planned Areas to Work
+                                            📍 Planned Areas to Work
                                         </label>
                                         <textarea
                                             value={currentEntry.plannedAreas}
@@ -287,8 +300,7 @@
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            <MapPin className="inline w-4 h-4 mr-1" />
-                                            Actual Areas Worked
+                                            📍 Actual Areas Worked
                                         </label>
                                         <textarea
                                             value={currentEntry.actualAreas}
@@ -302,7 +314,7 @@
 
                                 {/* Doctors Visited */}
                                 <div className="mb-8">
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Doctors Visited</h3>
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-4">👨‍⚕️ Doctors Visited</h3>
                                     <div className="bg-gray-50 p-4 rounded-lg mb-4">
                                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                                             <input
@@ -340,8 +352,7 @@
                                             onClick={addDoctor}
                                             className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
                                         >
-                                            <Plus className="inline w-4 h-4 mr-1" />
-                                            Add Doctor
+                                            ➕ Add Doctor
                                         </button>
                                     </div>
                                     
@@ -375,7 +386,7 @@
 
                                 {/* Pharmacies Visited */}
                                 <div className="mb-8">
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Pharmacies Visited</h3>
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-4">🏥 Pharmacies Visited</h3>
                                     <div className="bg-gray-50 p-4 rounded-lg mb-4">
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                             <input
@@ -406,8 +417,7 @@
                                             onClick={addPharmacy}
                                             className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors"
                                         >
-                                            <Plus className="inline w-4 h-4 mr-1" />
-                                            Add Pharmacy
+                                            ➕ Add Pharmacy
                                         </button>
                                     </div>
                                     
@@ -440,7 +450,7 @@
 
                                 {/* Orders */}
                                 <div className="mb-8">
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Orders</h3>
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-4">📦 Orders</h3>
                                     <div className="bg-gray-50 p-4 rounded-lg mb-4">
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                             <input
@@ -469,8 +479,7 @@
                                             onClick={addOrder}
                                             className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition-colors"
                                         >
-                                            <Package className="inline w-4 h-4 mr-1" />
-                                            Add Order
+                                            📦 Add Order
                                         </button>
                                     </div>
                                     
@@ -497,7 +506,7 @@
 
                                 {/* Returns */}
                                 <div className="mb-8">
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Returns</h3>
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-4">↩️ Returns</h3>
                                     <div className="bg-gray-50 p-4 rounded-lg mb-4">
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                             <input
@@ -526,8 +535,7 @@
                                             onClick={addReturn}
                                             className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors"
                                         >
-                                            <Plus className="inline w-4 h-4 mr-1" />
-                                            Add Return
+                                            ➕ Add Return
                                         </button>
                                     </div>
                                     
@@ -555,7 +563,7 @@
                                 {/* Notes */}
                                 <div className="mb-8">
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Additional Notes
+                                        📝 Additional Notes
                                     </label>
                                     <textarea
                                         value={currentEntry.notes}
@@ -572,8 +580,7 @@
                                     disabled={saving}
                                     className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
                                 >
-                                    <Save className="inline w-5 h-5 mr-2" />
-                                    {saving ? 'Saving...' : 'Save Entry'}
+                                    💾 {saving ? 'Saving...' : 'Save Entry'}
                                 </button>
                             </div>
                         )}
@@ -581,9 +588,14 @@
                         {/* View Entries */}
                         {activeTab === 'view' && (
                             <div className="bg-white rounded-xl shadow-lg p-6">
-                                <h2 className="text-2xl font-bold text-gray-800 mb-6">Daily Activity Reports</h2>
+                                <h2 className="text-2xl font-bold text-gray-800 mb-6">📊 Daily Activity Reports</h2>
                                 
-                                {entries.length === 0 ? (
+                                {loading ? (
+                                    <div className="text-center py-12">
+                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+                                        <p className="text-gray-500 mt-4">Loading entries from Google Sheets...</p>
+                                    </div>
+                                ) : entries.length === 0 ? (
                                     <div className="text-center py-12">
                                         <p className="text-gray-500 text-lg">No entries yet. Create your first entry to get started!</p>
                                     </div>
@@ -596,6 +608,11 @@
                                                         <h3 className="text-lg font-semibold text-gray-800">{entry.officerName}</h3>
                                                         <p className="text-gray-600">{entry.date}</p>
                                                     </div>
+                                                    {entry.timestamp && (
+                                                        <p className="text-sm text-gray-500">
+                                                            Submitted: {new Date(entry.timestamp).toLocaleString()}
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
