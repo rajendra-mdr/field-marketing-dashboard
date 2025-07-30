@@ -1,0 +1,17 @@
+# GitHub Pages Configuration
+title: Field Marketing Dashboard
+description: A comprehensive field marketing dashboard for healthcare professionals
+baseurl: "/field-marketing-dashboard"
+url: "https://rajendra-mdr.github.io"
+
+# Jekyll Configuration
+markdown: kramdown
+highlighter: rouge
+permalink: pretty
+
+# Exclude files from processing
+exclude:
+  - .git/
+  - .github/
+  - README.md
+  - _config.yml 
