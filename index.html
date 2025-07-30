@@ -4,13 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Field Marketing Dashboard - Enhanced</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/recharts@2.7.2/umd/Recharts.js"></script>
-    <script src="https://unpkg.com/date-fns@2.30.0/index.js"></script>
+    <script src="https://unpkg.com/recharts@2.7.2/umd/Recharts.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -98,7 +97,10 @@
         };
 
         const { useState, useEffect, useCallback, useMemo } = React;
-        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, PieChart, Pie, Cell } = Recharts;
+        
+        // Check if Recharts is available
+        const RechartsComponents = window.Recharts || {};
+        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, PieChart, Pie, Cell } = RechartsComponents;
 
         // Enhanced API Service
         class APIService {
@@ -1011,33 +1013,55 @@
                                         </div>
 
                                         {/* Charts */}
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                            <div className="bg-white p-6 rounded-lg border">
-                                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Weekly Activity Trends</h3>
-                                                <LineChart width={400} height={300} data={analyticsData.weeklyData}>
-                                                    <CartesianGrid strokeDasharray="3 3" />
-                                                    <XAxis dataKey="week" />
-                                                    <YAxis />
-                                                    <Tooltip />
-                                                    <Legend />
-                                                    <Line type="monotone" dataKey="doctors" stroke="#3b82f6" name="Doctors" />
-                                                    <Line type="monotone" dataKey="pharmacies" stroke="#10b981" name="Pharmacies" />
-                                                </LineChart>
+                                        {LineChart && BarChart ? (
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                                <div className="bg-white p-6 rounded-lg border">
+                                                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Weekly Activity Trends</h3>
+                                                    <LineChart width={400} height={300} data={analyticsData.weeklyData}>
+                                                        <CartesianGrid strokeDasharray="3 3" />
+                                                        <XAxis dataKey="week" />
+                                                        <YAxis />
+                                                        <Tooltip />
+                                                        <Legend />
+                                                        <Line type="monotone" dataKey="doctors" stroke="#3b82f6" name="Doctors" />
+                                                        <Line type="monotone" dataKey="pharmacies" stroke="#10b981" name="Pharmacies" />
+                                                    </LineChart>
+                                                </div>
+                                                
+                                                <div className="bg-white p-6 rounded-lg border">
+                                                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Orders vs Returns</h3>
+                                                    <BarChart width={400} height={300} data={analyticsData.weeklyData}>
+                                                        <CartesianGrid strokeDasharray="3 3" />
+                                                        <XAxis dataKey="week" />
+                                                        <YAxis />
+                                                        <Tooltip />
+                                                        <Legend />
+                                                        <Bar dataKey="orders" fill="#8b5cf6" name="Orders" />
+                                                        <Bar dataKey="returns" fill="#ef4444" name="Returns" />
+                                                    </BarChart>
+                                                </div>
                                             </div>
-                                            
-                                            <div className="bg-white p-6 rounded-lg border">
-                                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Orders vs Returns</h3>
-                                                <BarChart width={400} height={300} data={analyticsData.weeklyData}>
-                                                    <CartesianGrid strokeDasharray="3 3" />
-                                                    <XAxis dataKey="week" />
-                                                    <YAxis />
-                                                    <Tooltip />
-                                                    <Legend />
-                                                    <Bar dataKey="orders" fill="#8b5cf6" name="Orders" />
-                                                    <Bar dataKey="returns" fill="#ef4444" name="Returns" />
-                                                </BarChart>
+                                        ) : (
+                                            <div className="bg-yellow-50 p-6 rounded-lg border">
+                                                <h3 className="text-lg font-semibold text-yellow-800 mb-4">📊 Charts</h3>
+                                                <p className="text-yellow-700">
+                                                    Charts are loading... If they don't appear, please refresh the page.
+                                                </p>
+                                                <div className="mt-4">
+                                                    <h4 className="font-medium text-yellow-800 mb-2">Weekly Summary:</h4>
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                        {analyticsData.weeklyData.map((week, index) => (
+                                                            <div key={index} className="bg-white p-3 rounded border">
+                                                                <div className="text-sm font-medium text-gray-600">{week.week}</div>
+                                                                <div className="text-xs text-gray-500">
+                                                                    D: {week.doctors} | P: {week.pharmacies} | O: {week.orders} | R: {week.returns}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -1047,8 +1071,19 @@
             );
         };
 
-        // Render the app
-        ReactDOM.render(<FieldMarketingDashboard />, document.getElementById('root'));
+        // Render the app with error handling
+        try {
+            ReactDOM.render(<FieldMarketingDashboard />, document.getElementById('root'));
+        } catch (error) {
+            console.error('Error rendering app:', error);
+            document.getElementById('root').innerHTML = `
+                <div style="padding: 20px; text-align: center; font-family: Arial, sans-serif;">
+                    <h1>Field Marketing Dashboard</h1>
+                    <p>Loading... Please wait.</p>
+                    <p style="color: #666; font-size: 14px;">If this message persists, please refresh the page.</p>
+                </div>
+            `;
+        }
     </script>
 </body>
 </html> 
