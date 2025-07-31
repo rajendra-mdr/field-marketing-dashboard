@@ -338,4 +338,93 @@ function createSheetStructure() {
   }
 }
 
+// Function to fix existing data alignment with new headers
+function fixDataAlignment() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = spreadsheet.getSheetByName(SHEET_NAME);
+    
+    if (!sheet) {
+      throw new Error('Sheet not found');
+    }
+    
+    // Get all data
+    const dataRange = sheet.getDataRange();
+    const data = dataRange.getValues();
+    
+    if (data.length <= 1) {
+      log('No data to fix');
+      return { success: true, message: 'No data to fix' };
+    }
+    
+    // Check current header structure
+    const currentHeaders = data[0];
+    log(`Current headers: ${currentHeaders.join(', ')}`);
+    
+    // Expected new header structure
+    const expectedHeaders = [
+      'Timestamp',
+      'Date',
+      'Officer Name',
+      'Planned Areas',
+      'Actual Areas',
+      'Doctors Visited',
+      'Pharmacies Visited',
+      'Orders',
+      'Returns',
+      'Notes'
+    ];
+    
+    // If headers don't match, we need to reorganize the data
+    if (currentHeaders.join(',') !== expectedHeaders.join(',')) {
+      log('Headers don\'t match, reorganizing data...');
+      
+      // Create a mapping from old to new structure
+      const oldToNewMapping = {};
+      currentHeaders.forEach((header, index) => {
+        const newIndex = expectedHeaders.indexOf(header);
+        if (newIndex !== -1) {
+          oldToNewMapping[index] = newIndex;
+        }
+      });
+      
+      // Reorganize data rows
+      const reorganizedData = [];
+      for (let i = 1; i < data.length; i++) {
+        const oldRow = data[i];
+        const newRow = new Array(expectedHeaders.length).fill('');
+        
+        // Map old data to new positions
+        Object.keys(oldToNewMapping).forEach(oldIndex => {
+          const newIndex = oldToNewMapping[oldIndex];
+          newRow[newIndex] = oldRow[oldIndex] || '';
+        });
+        
+        reorganizedData.push(newRow);
+      }
+      
+      // Clear existing data and set new structure
+      sheet.clear();
+      sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+      
+      if (reorganizedData.length > 0) {
+        sheet.getRange(2, 1, reorganizedData.length, expectedHeaders.length).setValues(reorganizedData);
+      }
+      
+      // Apply formatting
+      const headerRange = sheet.getRange(1, 1, 1, expectedHeaders.length);
+      headerRange.setFontWeight('bold');
+      headerRange.setBackground('#4285f4');
+      headerRange.setFontColor('white');
+      
+      log(`Reorganized ${reorganizedData.length} rows of data`);
+    }
+    
+    return { success: true, message: 'Data alignment fixed' };
+  } catch (error) {
+    log(`Error fixing data alignment: ${error.toString()}`);
+    return { success: false, error: error.toString() };
+  }
+}
+
  
