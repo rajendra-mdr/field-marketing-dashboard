@@ -2,7 +2,7 @@
 // Copy this code to your Google Apps Script editor
 
 // Global configuration
-const SHEET_NAME = 'Sheet1'; // Change this to match your sheet name
+const SHEET_NAME = 'Field Marketing Data'; // Your Google Sheet name
 const DEBUG_MODE = true; // Set to false in production
 
 function log(message) {
@@ -15,8 +15,7 @@ function setCorsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Content-Type': 'application/json'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
   };
 }
 
@@ -79,8 +78,7 @@ function doPost(e) {
           message: 'Entry added successfully',
           timestamp: new Date().toISOString()
         }))
-        .setMimeType(ContentService.MimeType.JSON)
-        .setHeaders(headers);
+        .setMimeType(ContentService.MimeType.JSON);
     } else {
       throw new Error(`Unknown action: ${data.action}`);
     }
@@ -93,8 +91,7 @@ function doPost(e) {
         error: error.toString(),
         timestamp: new Date().toISOString()
       }))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeaders(setCorsHeaders());
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -115,10 +112,9 @@ function doGet(e) {
     
     if (data.length === 0) {
       log('No data found in sheet');
-      return ContentService
-        .createTextOutput(JSON.stringify([]))
-        .setMimeType(ContentService.MimeType.JSON)
-        .setHeaders(headers);
+          return ContentService
+      .createTextOutput(JSON.stringify([]))
+      .setMimeType(ContentService.MimeType.JSON);
     }
     
     // Get headers (first row)
@@ -142,8 +138,7 @@ function doGet(e) {
     
     return ContentService
       .createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeaders(headers);
+      .setMimeType(ContentService.MimeType.JSON);
   } catch (error) {
     log(`Error in doGet: ${error.toString()}`);
     
@@ -152,8 +147,7 @@ function doGet(e) {
         error: error.toString(),
         timestamp: new Date().toISOString()
       }))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeaders(setCorsHeaders());
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -162,8 +156,7 @@ function doOptions(e) {
   log('OPTIONS request received');
   
   return ContentService
-    .createTextOutput('')
-    .setHeaders(setCorsHeaders());
+    .createTextOutput('');
 }
 
 // Test endpoint to verify the script is working
@@ -177,8 +170,7 @@ function doTest(e) {
       timestamp: new Date().toISOString(),
       postData: e ? (e.postData ? e.postData.contents : 'No postData') : 'No event object'
     }))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeaders(setCorsHeaders());
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // Test function to verify setup
