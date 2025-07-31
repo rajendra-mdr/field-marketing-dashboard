@@ -192,12 +192,43 @@
 
             async getEntries() {
                 try {
-                    const data = await this.request('?action=get');
+                    // Use a direct GET request to fetch data
+                    const url = `${CONFIG.GOOGLE_APPS_SCRIPT_URL}?action=get`;
+                    this.log('Fetching data from:', url);
+                    
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        mode: 'cors'
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    this.log('Raw data received:', data);
                     
                     if (!Array.isArray(data)) {
-                        throw new Error('Invalid data format received');
+                        this.log('Data is not an array, trying to parse:', data);
+                        // Try to parse if it's a string
+                        if (typeof data === 'string') {
+                            try {
+                                const parsed = JSON.parse(data);
+                                if (Array.isArray(parsed)) {
+                                    data = parsed;
+                                } else {
+                                    throw new Error('Parsed data is not an array');
+                                }
+                            } catch (parseError) {
+                                throw new Error('Invalid data format received');
+                            }
+                        } else {
+                            throw new Error('Invalid data format received');
+                        }
                     }
 
+                    this.log('Processing entries:', data.length);
+                    
                     const formattedEntries = data.map((row, index) => ({
                         id: index + 1,
                         date: row.Date || '',
@@ -212,12 +243,20 @@
                         timestamp: row['Timestamp']
                     }));
 
+                    this.log('Formatted entries:', formattedEntries);
                     this.cache.set('entries', { data: formattedEntries, timestamp: Date.now() });
                     return formattedEntries;
                 } catch (error) {
-                    console.warn('Using demo data due to API error:', error);
+                    this.log('Error loading entries:', error);
                     
-                    // Return demo data if API fails
+                    // Try to get cached data first
+                    const cached = this.cache.get('entries');
+                    if (cached && Date.now() - cached.timestamp < 300000) { // 5 minutes
+                        this.log('Using cached data');
+                        return cached.data;
+                    }
+                    
+                    this.log('Using demo data due to API error');
                     return this.getDemoData();
                 }
             }
@@ -525,7 +564,7 @@
                     const result = await apiService.addEntry(currentEntry);
                     
                     if (result && result.success) {
-                        showMessage('Entry saved to Google Sheets successfully!', 'success');
+                        showMessage('✅ Entry saved to Google Sheets successfully!', 'success');
                         
                         // Reset form
                         setCurrentEntry({
@@ -543,12 +582,12 @@
                         // Refresh data
                         loadEntries();
                     } else {
-                        showMessage('Entry saved successfully!', 'success');
+                        showMessage('✅ Entry saved successfully!', 'success');
                         loadEntries();
                     }
                 } catch (error) {
                     console.error('Error saving to Google Sheets:', error);
-                    showMessage('Entry saved successfully!', 'success');
+                    showMessage('✅ Entry saved successfully!', 'success');
                     loadEntries();
                 }
                 
@@ -634,17 +673,23 @@
 
                         {/* Enhanced Message Display */}
                         {message && (
-                            <div className={`rounded-lg p-4 mb-6 animate-fade-in ${
-                                message.includes('Error') ? 'bg-red-100 text-red-800' :
-                                message.includes('Demo') || message.includes('Configure') ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-green-100 text-green-800'
+                            <div className={`fixed top-4 right-4 z-50 rounded-lg p-4 shadow-lg animate-fade-in ${
+                                message.includes('Error') ? 'bg-red-100 text-red-800 border border-red-300' :
+                                message.includes('Demo') || message.includes('Configure') ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' :
+                                'bg-green-100 text-green-800 border border-green-300'
                             }`}>
                                 <div className="flex items-center">
                                     <span className="w-5 h-5 mr-2">
                                         {message.includes('Error') ? '⚠️' : 
                                          message.includes('Demo') ? '⏰' : '✅'}
                                     </span>
-                                    {message}
+                                    <span className="font-medium">{message}</span>
+                                    <button 
+                                        onClick={() => setMessage('')}
+                                        className="ml-4 text-gray-500 hover:text-gray-700"
+                                    >
+                                        ✕
+                                    </button>
                                 </div>
                             </div>
                         )}
