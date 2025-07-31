@@ -63,6 +63,9 @@ Simply visit: https://rajendra-mdr.github.io/field-marketing-dashboard/
 
 ## 🔧 Configuration
 
+### Quick Setup Guide
+For detailed step-by-step instructions, see [SETUP_GUIDE.md](SETUP_GUIDE.md)
+
 ### Google Sheets Setup
 
 1. **Create Google Sheet**
@@ -157,12 +160,21 @@ const CONFIG = {
 
 ```
 field-marketing-dashboard/
-├── index.html              # Main application file
-├── README.md               # Documentation
-└── .gitignore              # Git ignore file
+├── index.html                    # Main application file
+├── test-api.html                 # API testing tool
+├── google-apps-script-cors-fix.js # Google Apps Script code
+├── SETUP_GUIDE.md               # Detailed setup instructions
+├── README.md                    # Documentation
+└── .gitignore                   # Git ignore file
 ```
 
 ## 🎯 Usage
+
+### Testing Your Setup
+1. Open `test-api.html` in your browser
+2. Enter your Google Apps Script URL
+3. Test both GET and POST requests
+4. Verify responses are successful
 
 ### Adding New Entry
 1. Navigate to the "New Entry" tab

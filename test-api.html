@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test - Field Marketing Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007cba;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #005a87;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 API Test Tool</h1>
+        <p>Use this tool to test your Google Apps Script API before using the main dashboard.</p>
+        
+        <div class="form-group">
+            <label for="apiUrl">Google Apps Script URL:</label>
+            <input type="text" id="apiUrl" placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec">
+        </div>
+        
+        <div class="form-group">
+            <button onclick="testGet()">Test GET Request</button>
+            <button onclick="testSimplePost()">Test Simple POST</button>
+            <button onclick="testPost()">Test Full POST Request</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+        
+        <div id="results"></div>
+        
+        <div class="form-group" style="margin-top: 30px;">
+            <h3>Test Data for POST Request:</h3>
+            <textarea id="testData" rows="10" readonly>{
+  "action": "add",
+  "data": {
+    "Date": "2024-01-15",
+    "Officer Name": "Test User",
+    "Planned Areas": "Downtown Medical District",
+    "Actual Areas": "Downtown Medical District, Central Hospital",
+    "Doctors Visited": "Dr. Smith (Central Hospital, Cardiology) - visited; Dr. Johnson (Medical Center, Pediatrics) - visited",
+    "Pharmacies Visited": "City Pharmacy (Downtown) - visited; Health Plus (Central) - visited",
+    "Orders": "Medicine A - 50 (City Pharmacy); Medicine B - 30 (Health Plus)",
+    "Returns": "Expired Medicine - 5 (Expired)",
+    "Notes": "Test entry from API test tool",
+    "Timestamp": "2024-01-15T10:30:00Z"
+  }
+}</textarea>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function testGet() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            
+            if (!apiUrl) {
+                log('Please enter a Google Apps Script URL', 'error');
+                return;
+            }
+            
+            log(`Testing GET request to: ${apiUrl}`, 'info');
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                log(`Response status: ${response.status} ${response.statusText}`, 'info');
+                
+                const contentType = response.headers.get('content-type');
+                log(`Content-Type: ${contentType}`, 'info');
+                
+                const data = await response.text();
+                log(`Response data: ${data}`, 'success');
+                
+                // Try to parse as JSON
+                try {
+                    const jsonData = JSON.parse(data);
+                    log(`Parsed JSON: ${JSON.stringify(jsonData, null, 2)}`, 'success');
+                } catch (e) {
+                    log(`Could not parse as JSON: ${e.message}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSimplePost() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            
+            if (!apiUrl) {
+                log('Please enter a Google Apps Script URL', 'error');
+                return;
+            }
+            
+            log(`Testing simple POST request to: ${apiUrl}`, 'info');
+            
+            try {
+                const simpleData = {
+                    action: 'add',
+                    data: {
+                        Date: '2024-01-15',
+                        'Officer Name': 'Test User',
+                        'Planned Areas': 'Test Area',
+                        'Actual Areas': 'Test Area',
+                        'Doctors Visited': '',
+                        'Pharmacies Visited': '',
+                        'Orders': '',
+                        'Returns': '',
+                        'Notes': 'Simple test',
+                        'Timestamp': new Date().toISOString()
+                    }
+                };
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(simpleData)
+                });
+                
+                log(`Response status: ${response.status} ${response.statusText}`, 'info');
+                
+                const contentType = response.headers.get('content-type');
+                log(`Content-Type: ${contentType}`, 'info');
+                
+                const data = await response.text();
+                log(`Response data: ${data}`, 'success');
+                
+                // Try to parse as JSON
+                try {
+                    const jsonData = JSON.parse(data);
+                    log(`Parsed JSON: ${JSON.stringify(jsonData, null, 2)}`, 'success');
+                } catch (e) {
+                    log(`Could not parse as JSON: ${e.message}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPost() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            
+            if (!apiUrl) {
+                log('Please enter a Google Apps Script URL', 'error');
+                return;
+            }
+            
+            log(`Testing full POST request to: ${apiUrl}`, 'info');
+            
+            try {
+                const testData = JSON.parse(document.getElementById('testData').value);
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                log(`Response status: ${response.status} ${response.statusText}`, 'info');
+                
+                const contentType = response.headers.get('content-type');
+                log(`Content-Type: ${contentType}`, 'info');
+                
+                const data = await response.text();
+                log(`Response data: ${data}`, 'success');
+                
+                // Try to parse as JSON
+                try {
+                    const jsonData = JSON.parse(data);
+                    log(`Parsed JSON: ${JSON.stringify(jsonData, null, 2)}`, 'success');
+                } catch (e) {
+                    log(`Could not parse as JSON: ${e.message}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-fill with common test URL pattern
+        document.getElementById('apiUrl').addEventListener('focus', function() {
+            if (!this.value) {
+                this.value = 'https://script.google.com/macros/s/';
+            }
+        });
+    </script>
+</body>
+</html> 

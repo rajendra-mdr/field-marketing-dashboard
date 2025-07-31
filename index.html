@@ -87,8 +87,8 @@
     <script type="text/babel">
         // Enhanced Configuration
         const CONFIG = {
-            GOOGLE_APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyVH6TVBRlEHx0iobhG58IXe9jDAzPEelkBu4v5Lv6yAM2MPFCMbg7fAPgVKvYlewQruQ/exec',
-            SHEET_ID: '1RF1DIuxmNV9L8tYDDA-2B4gCWkSoG-1Iilm3mlgxTn8',
+            GOOGLE_APPS_SCRIPT_URL: 'YOUR_NEW_GOOGLE_APPS_SCRIPT_URL_HERE',
+            SHEET_ID: 'YOUR_GOOGLE_SHEET_ID_HERE',
             APP_NAME: 'Field Marketing Dashboard',
             COMPANY_NAME: 'Stellar Healthcare Pvt. Ltd',
             VERSION: '2.0.0',
@@ -102,15 +102,24 @@
         const RechartsComponents = window.Recharts || {};
         const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, PieChart, Pie, Cell } = RechartsComponents;
 
-        // Enhanced API Service
+        // Enhanced API Service with better error handling
         class APIService {
             constructor() {
                 this.cache = new Map();
                 this.offlineQueue = [];
+                this.debugMode = true; // Set to false in production
+            }
+
+            log(message, data = null) {
+                if (this.debugMode) {
+                    console.log(`[API Service] ${message}`, data || '');
+                }
             }
 
             async request(endpoint, options = {}) {
                 const url = endpoint.startsWith('http') ? endpoint : `${CONFIG.GOOGLE_APPS_SCRIPT_URL}${endpoint}`;
+                
+                this.log(`Making request to: ${url}`, { method: options.method || 'GET', options });
                 
                 const defaultOptions = {
                     headers: { 'Content-Type': 'application/json' },
@@ -122,19 +131,31 @@
                 try {
                     const response = await fetch(url, requestOptions);
                     
+                    this.log(`Response status: ${response.status}`, { 
+                        ok: response.ok, 
+                        statusText: response.statusText,
+                        headers: Object.fromEntries(response.headers.entries())
+                    });
+                    
                     if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        const errorText = await response.text();
+                        this.log(`Error response body: ${errorText}`);
+                        throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
                     }
 
                     const contentType = response.headers.get('content-type');
-                    return contentType && contentType.includes('application/json') 
+                    const result = contentType && contentType.includes('application/json') 
                         ? await response.json() 
                         : await response.text();
+                    
+                    this.log(`Response data:`, result);
+                    return result;
                 } catch (error) {
-                    console.error('API Error:', error);
+                    this.log(`API Error:`, error);
                     
                     // Fallback to JSONP for GET requests
                     if (options.method === 'GET' || !options.method) {
+                        this.log('Attempting JSONP fallback...');
                         return this.jsonpRequest(url);
                     }
                     
@@ -336,6 +357,26 @@
 
         const apiService = new APIService();
 
+        // Configuration checker
+        const checkConfiguration = () => {
+            const issues = [];
+            
+            if (!CONFIG.GOOGLE_APPS_SCRIPT_URL || CONFIG.GOOGLE_APPS_SCRIPT_URL.includes('YOUR_')) {
+                issues.push('Google Apps Script URL not configured');
+            }
+            
+            if (!CONFIG.SHEET_ID || CONFIG.SHEET_ID.includes('YOUR_')) {
+                issues.push('Google Sheet ID not configured');
+            }
+            
+            if (issues.length > 0) {
+                console.warn('Configuration issues found:', issues);
+                return { valid: false, issues };
+            }
+            
+            return { valid: true, issues: [] };
+        };
+
         // Enhanced Field Marketing Dashboard Component
         const FieldMarketingDashboard = () => {
             const [activeTab, setActiveTab] = useState('entry');
@@ -375,6 +416,12 @@
 
             // Load entries on component mount
             useEffect(() => {
+                // Check configuration first
+                const configCheck = checkConfiguration();
+                if (!configCheck.valid) {
+                    showMessage(`Configuration issues: ${configCheck.issues.join(', ')}. Please check SETUP_GUIDE.md`, 'error');
+                }
+                
                 loadEntries();
                 
                 // Auto-refresh every 30 seconds
@@ -532,6 +579,26 @@
                                 <div>
                                     <h1 className="text-3xl font-bold text-gray-800 mb-2">{CONFIG.APP_NAME}</h1>
                                     <p className="text-gray-600">Powered by {CONFIG.COMPANY_NAME} - v{CONFIG.VERSION}</p>
+                                    {/* Configuration Status */}
+                                    {(() => {
+                                        const configCheck = checkConfiguration();
+                                        return configCheck.valid ? (
+                                            <p className="text-green-600 text-sm mt-1">✅ Google Sheets connected</p>
+                                        ) : (
+                                            <div className="mt-1">
+                                                <p className="text-red-600 text-sm">⚠️ Configuration issues detected</p>
+                                                <button
+                                                    onClick={() => {
+                                                        const issues = configCheck.issues.join(', ');
+                                                        showMessage(`Configuration issues: ${issues}. Please check SETUP_GUIDE.md`, 'error');
+                                                    }}
+                                                    className="text-blue-600 text-xs underline hover:text-blue-800"
+                                                >
+                                                    View Details
+                                                </button>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <button

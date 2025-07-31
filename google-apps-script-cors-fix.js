@@ -1,98 +1,264 @@
-// Updated Google Apps Script with CORS support
+// Enhanced Google Apps Script with proper CORS support and error handling
 // Copy this code to your Google Apps Script editor
 
+// Global configuration
+const SHEET_NAME = 'Sheet1'; // Change this to match your sheet name
+const DEBUG_MODE = true; // Set to false in production
+
+function log(message) {
+  if (DEBUG_MODE) {
+    console.log(`[${new Date().toISOString()}] ${message}`);
+  }
+}
+
+function setCorsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type': 'application/json'
+  };
+}
+
 function doPost(e) {
+  log('POST request received');
+  
   try {
     // Set CORS headers
-    const headers = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Content-Type': 'application/json'
-    };
+    const headers = setCorsHeaders();
     
-    const data = JSON.parse(e.postData.contents);
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    // Check if we have post data
+    if (!e || !e.postData || !e.postData.contents) {
+      log('No post data received');
+      throw new Error('No post data received');
+    }
+    
+    // Parse the incoming data
+    let data;
+    try {
+      data = JSON.parse(e.postData.contents);
+      log(`Parsed data: ${JSON.stringify(data)}`);
+    } catch (parseError) {
+      log(`JSON parse error: ${parseError.toString()}`);
+      log(`Raw post data: ${e.postData.contents}`);
+      throw new Error(`Invalid JSON: ${parseError.toString()}`);
+    }
+    
+    log(`Action: ${data.action}`);
+    
+    // Get the spreadsheet and sheet
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = spreadsheet.getSheetByName(SHEET_NAME) || spreadsheet.getActiveSheet();
     
     if (data.action === 'add') {
+      // Validate required fields
+      if (!data.data['Officer Name'] || !data.data['Date']) {
+        throw new Error('Officer Name and Date are required fields');
+      }
+      
       const rowData = [
-        data.data.Date,
-        data.data['Officer Name'],
-        data.data['Planned Areas'],
-        data.data['Actual Areas'],
-        data.data['Doctors Visited'],
-        data.data['Pharmacies Visited'],
-        data.data['Orders'],
-        data.data['Returns'],
-        data.data['Notes'],
-        data.data['Timestamp']
+        data.data.Date || '',
+        data.data['Officer Name'] || '',
+        data.data['Planned Areas'] || '',
+        data.data['Actual Areas'] || '',
+        data.data['Doctors Visited'] || '',
+        data.data['Pharmacies Visited'] || '',
+        data.data['Orders'] || '',
+        data.data['Returns'] || '',
+        data.data['Notes'] || '',
+        data.data['Timestamp'] || new Date().toISOString()
       ];
       
+      // Append the row
       sheet.appendRow(rowData);
+      log('Row added successfully');
       
       return ContentService
-        .createTextOutput(JSON.stringify({ success: true }))
+        .createTextOutput(JSON.stringify({ 
+          success: true, 
+          message: 'Entry added successfully',
+          timestamp: new Date().toISOString()
+        }))
         .setMimeType(ContentService.MimeType.JSON)
         .setHeaders(headers);
+    } else {
+      throw new Error(`Unknown action: ${data.action}`);
     }
   } catch (error) {
+    log(`Error in doPost: ${error.toString()}`);
+    
     return ContentService
       .createTextOutput(JSON.stringify({ 
         success: false, 
-        error: error.toString() 
+        error: error.toString(),
+        timestamp: new Date().toISOString()
       }))
       .setMimeType(ContentService.MimeType.JSON)
-      .setHeaders(headers);
+      .setHeaders(setCorsHeaders());
   }
 }
 
 function doGet(e) {
+  log('GET request received');
+  
   try {
     // Set CORS headers
-    const headers = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Content-Type': 'application/json'
-    };
+    const headers = setCorsHeaders();
     
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    const data = sheet.getDataRange().getValues();
+    // Get the spreadsheet and sheet
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = spreadsheet.getSheetByName(SHEET_NAME) || spreadsheet.getActiveSheet();
+    
+    // Get all data
+    const dataRange = sheet.getDataRange();
+    const data = dataRange.getValues();
+    
+    if (data.length === 0) {
+      log('No data found in sheet');
+      return ContentService
+        .createTextOutput(JSON.stringify([]))
+        .setMimeType(ContentService.MimeType.JSON)
+        .setHeaders(headers);
+    }
+    
+    // Get headers (first row)
     const headers_row = data[0];
-    const rows = data.slice(1);
+    log(`Headers: ${headers_row.join(', ')}`);
     
-    const result = rows.map(row => {
+    // Get data rows (skip header row)
+    const rows = data.slice(1);
+    log(`Found ${rows.length} data rows`);
+    
+    // Convert to objects
+    const result = rows.map((row, index) => {
       const obj = {};
-      headers_row.forEach((header, index) => {
-        obj[header] = row[index];
+      headers_row.forEach((header, colIndex) => {
+        obj[header] = row[colIndex] || '';
       });
       return obj;
     });
+    
+    log(`Returning ${result.length} entries`);
     
     return ContentService
       .createTextOutput(JSON.stringify(result))
       .setMimeType(ContentService.MimeType.JSON)
       .setHeaders(headers);
   } catch (error) {
+    log(`Error in doGet: ${error.toString()}`);
+    
     return ContentService
       .createTextOutput(JSON.stringify({ 
-        error: error.toString() 
+        error: error.toString(),
+        timestamp: new Date().toISOString()
       }))
       .setMimeType(ContentService.MimeType.JSON)
-      .setHeaders(headers);
+      .setHeaders(setCorsHeaders());
   }
 }
 
 // Handle OPTIONS requests for CORS preflight
 function doOptions(e) {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Content-Type': 'application/json'
-  };
+  log('OPTIONS request received');
   
   return ContentService
     .createTextOutput('')
-    .setHeaders(headers);
+    .setHeaders(setCorsHeaders());
+}
+
+// Test endpoint to verify the script is working
+function doTest(e) {
+  log('TEST request received');
+  
+  return ContentService
+    .createTextOutput(JSON.stringify({
+      success: true,
+      message: 'Google Apps Script is working',
+      timestamp: new Date().toISOString(),
+      postData: e ? (e.postData ? e.postData.contents : 'No postData') : 'No event object'
+    }))
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeaders(setCorsHeaders());
+}
+
+// Test function to verify setup
+function testSetup() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = spreadsheet.getSheetByName(SHEET_NAME) || spreadsheet.getActiveSheet();
+    
+    log(`Spreadsheet ID: ${spreadsheet.getId()}`);
+    log(`Sheet name: ${sheet.getName()}`);
+    log(`Sheet URL: ${spreadsheet.getUrl()}`);
+    
+    const dataRange = sheet.getDataRange();
+    const data = dataRange.getValues();
+    
+    log(`Total rows: ${data.length}`);
+    log(`Total columns: ${data.length > 0 ? data[0].length : 0}`);
+    
+    if (data.length > 0) {
+      log(`Headers: ${data[0].join(', ')}`);
+    }
+    
+    return {
+      success: true,
+      spreadsheetId: spreadsheet.getId(),
+      sheetName: sheet.getName(),
+      totalRows: data.length,
+      totalColumns: data.length > 0 ? data[0].length : 0
+    };
+  } catch (error) {
+    log(`Test setup error: ${error.toString()}`);
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
+// Function to create the sheet structure if it doesn't exist
+function createSheetStructure() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = spreadsheet.getSheetByName(SHEET_NAME);
+    
+    if (!sheet) {
+      sheet = spreadsheet.insertSheet(SHEET_NAME);
+    }
+    
+    // Define headers
+    const headers = [
+      'Date',
+      'Officer Name',
+      'Planned Areas',
+      'Actual Areas',
+      'Doctors Visited',
+      'Pharmacies Visited',
+      'Orders',
+      'Returns',
+      'Notes',
+      'Timestamp'
+    ];
+    
+    // Set headers
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    
+    // Format header row
+    sheet.getRange(1, 1, 1, headers.length)
+      .setFontWeight('bold')
+      .setBackground('#4285f4')
+      .setFontColor('white');
+    
+    // Auto-resize columns
+    headers.forEach((_, index) => {
+      sheet.autoResizeColumn(index + 1);
+    });
+    
+    log('Sheet structure created successfully');
+    return { success: true, message: 'Sheet structure created' };
+  } catch (error) {
+    log(`Error creating sheet structure: ${error.toString()}`);
+    return { success: false, error: error.toString() };
+  }
 } 
