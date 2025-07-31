@@ -99,10 +99,56 @@ function doGet(e) {
   log('GET request received');
   
   try {
-    // Set CORS headers
-    const headers = setCorsHeaders();
+    // Check if this is an add action
+    if (e && e.parameter && e.parameter.action === 'add') {
+      log('Add action detected in GET request');
+      
+      // Parse the data
+      let data;
+      try {
+        data = JSON.parse(e.parameter.data);
+        log(`Parsed data: ${JSON.stringify(data)}`);
+      } catch (parseError) {
+        log(`JSON parse error: ${parseError.toString()}`);
+        throw new Error(`Invalid JSON: ${parseError.toString()}`);
+      }
+      
+      // Get the spreadsheet and sheet
+      const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = spreadsheet.getSheetByName(SHEET_NAME) || spreadsheet.getActiveSheet();
+      
+      // Validate required fields
+      if (!data['Officer Name'] || !data['Date']) {
+        throw new Error('Officer Name and Date are required fields');
+      }
+      
+      const rowData = [
+        data.Date || '',
+        data['Officer Name'] || '',
+        data['Planned Areas'] || '',
+        data['Actual Areas'] || '',
+        data['Doctors Visited'] || '',
+        data['Pharmacies Visited'] || '',
+        data['Orders'] || '',
+        data['Returns'] || '',
+        data['Notes'] || '',
+        data['Timestamp'] || new Date().toISOString()
+      ];
+      
+      // Append the row
+      sheet.appendRow(rowData);
+      log('Row added successfully via GET');
+      
+      return ContentService
+        .createTextOutput(JSON.stringify({ 
+          success: true, 
+          message: 'Entry added successfully',
+          timestamp: new Date().toISOString()
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     
-    // Get the spreadsheet and sheet
+    // Regular GET request to fetch data
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = spreadsheet.getSheetByName(SHEET_NAME) || spreadsheet.getActiveSheet();
     
@@ -112,9 +158,9 @@ function doGet(e) {
     
     if (data.length === 0) {
       log('No data found in sheet');
-          return ContentService
-      .createTextOutput(JSON.stringify([]))
-      .setMimeType(ContentService.MimeType.JSON);
+      return ContentService
+        .createTextOutput(JSON.stringify([]))
+        .setMimeType(ContentService.MimeType.JSON);
     }
     
     // Get headers (first row)
@@ -156,7 +202,8 @@ function doOptions(e) {
   log('OPTIONS request received');
   
   return ContentService
-    .createTextOutput('');
+    .createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT);
 }
 
 // Test endpoint to verify the script is working
