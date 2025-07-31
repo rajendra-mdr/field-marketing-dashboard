@@ -231,16 +231,16 @@
                     
                     const formattedEntries = data.map((row, index) => ({
                         id: index + 1,
-                        date: row.Date || '',
-                        officerName: row['Officer Name'] || '',
-                        plannedAreas: row['Planned Areas'] || '',
-                        actualAreas: row['Actual Areas'] || '',
+                        date: row.Date || 'N/A',
+                        officerName: row['Officer Name'] || 'N/A',
+                        plannedAreas: row['Planned Areas'] || 'N/A',
+                        actualAreas: row['Actual Areas'] || 'N/A',
                         doctorsVisited: this.parseListField(row['Doctors Visited'], 'doctor'),
                         pharmaciesVisited: this.parseListField(row['Pharmacies Visited'], 'pharmacy'),
                         orders: this.parseListField(row['Orders'], 'order'),
                         returns: this.parseListField(row['Returns'], 'return'),
-                        notes: row['Notes'] || '',
-                        timestamp: row['Timestamp']
+                        notes: row['Notes'] || 'N/A',
+                        timestamp: row['Timestamp'] || 'N/A'
                     }));
 
                     this.log('Formatted entries:', formattedEntries);
@@ -1103,72 +1103,112 @@
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                     <div>
                                                         <h4 className="font-medium text-gray-800 mb-2">Planned Areas</h4>
-                                                        <p className="text-gray-600 text-sm">{entry.plannedAreas || 'Not specified'}</p>
+                                                        <p className="text-gray-600 text-sm">
+                                                            {entry.plannedAreas === 'N/A' ? (
+                                                                <span className="text-gray-400 italic">Not specified</span>
+                                                            ) : (
+                                                                entry.plannedAreas
+                                                            )}
+                                                        </p>
                                                     </div>
                                                     <div>
                                                         <h4 className="font-medium text-gray-800 mb-2">Actual Areas</h4>
-                                                        <p className="text-gray-600 text-sm">{entry.actualAreas || 'Not specified'}</p>
+                                                        <p className="text-gray-600 text-sm">
+                                                            {entry.actualAreas === 'N/A' ? (
+                                                                <span className="text-gray-400 italic">Not specified</span>
+                                                            ) : (
+                                                                entry.actualAreas
+                                                            )}
+                                                        </p>
                                                     </div>
                                                 </div>
                                                 
                                                 <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                                     <div className="bg-blue-50 p-4 rounded-lg">
-                                                        <h4 className="font-medium text-blue-800 mb-2">Doctors ({entry.doctorsVisited.length})</h4>
+                                                        <h4 className="font-medium text-blue-800 mb-2">Doctors ({entry.doctorsVisited.length || '-'})</h4>
                                                         <div className="space-y-1 text-sm">
-                                                            {entry.doctorsVisited.slice(0, 3).map((doctor, idx) => (
-                                                                <div key={idx} className="text-blue-700">
-                                                                    {doctor.name} {doctor.location && `- ${doctor.location}`}
-                                                                </div>
-                                                            ))}
-                                                            {entry.doctorsVisited.length > 3 && (
-                                                                <div className="text-blue-600">...and {entry.doctorsVisited.length - 3} more</div>
+                                                            {entry.doctorsVisited.length === 0 ? (
+                                                                <div className="text-blue-400 italic">No doctors visited</div>
+                                                            ) : (
+                                                                <>
+                                                                    {entry.doctorsVisited.slice(0, 3).map((doctor, idx) => (
+                                                                        <div key={idx} className="text-blue-700">
+                                                                            {doctor.name} {doctor.location && `- ${doctor.location}`}
+                                                                        </div>
+                                                                    ))}
+                                                                    {entry.doctorsVisited.length > 3 && (
+                                                                        <div className="text-blue-600">...and {entry.doctorsVisited.length - 3} more</div>
+                                                                    )}
+                                                                </>
                                                             )}
                                                         </div>
                                                     </div>
                                                     
                                                     <div className="bg-green-50 p-4 rounded-lg">
-                                                        <h4 className="font-medium text-green-800 mb-2">Pharmacies ({entry.pharmaciesVisited.length})</h4>
+                                                        <h4 className="font-medium text-green-800 mb-2">Pharmacies ({entry.pharmaciesVisited.length || '-'})</h4>
                                                         <div className="space-y-1 text-sm">
-                                                            {entry.pharmaciesVisited.slice(0, 3).map((pharmacy, idx) => (
-                                                                <div key={idx} className="text-green-700">{pharmacy.name}</div>
-                                                            ))}
-                                                            {entry.pharmaciesVisited.length > 3 && (
-                                                                <div className="text-green-600">...and {entry.pharmaciesVisited.length - 3} more</div>
+                                                            {entry.pharmaciesVisited.length === 0 ? (
+                                                                <div className="text-green-400 italic">No pharmacies visited</div>
+                                                            ) : (
+                                                                <>
+                                                                    {entry.pharmaciesVisited.slice(0, 3).map((pharmacy, idx) => (
+                                                                        <div key={idx} className="text-green-700">{pharmacy.name}</div>
+                                                                    ))}
+                                                                    {entry.pharmaciesVisited.length > 3 && (
+                                                                        <div className="text-green-600">...and {entry.pharmaciesVisited.length - 3} more</div>
+                                                                    )}
+                                                                </>
                                                             )}
                                                         </div>
                                                     </div>
                                                     
                                                     <div className="bg-purple-50 p-4 rounded-lg">
-                                                        <h4 className="font-medium text-purple-800 mb-2">Orders ({entry.orders.length})</h4>
+                                                        <h4 className="font-medium text-purple-800 mb-2">Orders ({entry.orders.length || '-'})</h4>
                                                         <div className="space-y-1 text-sm">
-                                                            {entry.orders.slice(0, 3).map((order, idx) => (
-                                                                <div key={idx} className="text-purple-700">{order.item} {order.quantity && `- ${order.quantity}`}</div>
-                                                            ))}
-                                                            {entry.orders.length > 3 && (
-                                                                <div className="text-purple-600">...and {entry.orders.length - 3} more</div>
+                                                            {entry.orders.length === 0 ? (
+                                                                <div className="text-purple-400 italic">No orders placed</div>
+                                                            ) : (
+                                                                <>
+                                                                    {entry.orders.slice(0, 3).map((order, idx) => (
+                                                                        <div key={idx} className="text-purple-700">{order.item} {order.quantity && `- ${order.quantity}`}</div>
+                                                                    ))}
+                                                                    {entry.orders.length > 3 && (
+                                                                        <div className="text-purple-600">...and {entry.orders.length - 3} more</div>
+                                                                    )}
+                                                                </>
                                                             )}
                                                         </div>
                                                     </div>
                                                     
                                                     <div className="bg-red-50 p-4 rounded-lg">
-                                                        <h4 className="font-medium text-red-800 mb-2">Returns ({entry.returns.length})</h4>
+                                                        <h4 className="font-medium text-red-800 mb-2">Returns ({entry.returns.length || '-'})</h4>
                                                         <div className="space-y-1 text-sm">
-                                                            {entry.returns.slice(0, 3).map((returnItem, idx) => (
-                                                                <div key={idx} className="text-red-700">{returnItem.item} {returnItem.quantity && `- ${returnItem.quantity}`}</div>
-                                                            ))}
-                                                            {entry.returns.length > 3 && (
-                                                                <div className="text-red-600">...and {entry.returns.length - 3} more</div>
+                                                            {entry.returns.length === 0 ? (
+                                                                <div className="text-red-400 italic">No returns</div>
+                                                            ) : (
+                                                                <>
+                                                                    {entry.returns.slice(0, 3).map((returnItem, idx) => (
+                                                                        <div key={idx} className="text-red-700">{returnItem.item} {returnItem.quantity && `- ${returnItem.quantity}`}</div>
+                                                                    ))}
+                                                                    {entry.returns.length > 3 && (
+                                                                        <div className="text-red-600">...and {entry.returns.length - 3} more</div>
+                                                                    )}
+                                                                </>
                                                             )}
                                                         </div>
                                                     </div>
                                                 </div>
                                                 
-                                                {entry.notes && (
-                                                    <div className="mt-4">
-                                                        <h4 className="font-medium text-gray-800 mb-2">Notes</h4>
-                                                        <p className="text-gray-600 text-sm">{entry.notes}</p>
-                                                    </div>
-                                                )}
+                                                <div className="mt-4">
+                                                    <h4 className="font-medium text-gray-800 mb-2">Notes</h4>
+                                                    <p className="text-gray-600 text-sm">
+                                                        {entry.notes === 'N/A' ? (
+                                                            <span className="text-gray-400 italic">No notes added</span>
+                                                        ) : (
+                                                            entry.notes
+                                                        )}
+                                                    </p>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -1191,19 +1231,39 @@
                                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                                             <div className="bg-blue-50 p-6 rounded-lg">
                                                 <h3 className="text-lg font-semibold text-blue-800">Total Doctors</h3>
-                                                <p className="text-3xl font-bold text-blue-600">{analyticsData.summary.totalDoctors}</p>
+                                                <p className="text-3xl font-bold text-blue-600">
+                                                    {analyticsData.summary.totalDoctors || '-'}
+                                                </p>
+                                                {analyticsData.summary.totalDoctors === 0 && (
+                                                    <p className="text-sm text-blue-500 mt-1">No doctors visited yet</p>
+                                                )}
                                             </div>
                                             <div className="bg-green-50 p-6 rounded-lg">
                                                 <h3 className="text-lg font-semibold text-green-800">Total Pharmacies</h3>
-                                                <p className="text-3xl font-bold text-green-600">{analyticsData.summary.totalPharmacies}</p>
+                                                <p className="text-3xl font-bold text-green-600">
+                                                    {analyticsData.summary.totalPharmacies || '-'}
+                                                </p>
+                                                {analyticsData.summary.totalPharmacies === 0 && (
+                                                    <p className="text-sm text-green-500 mt-1">No pharmacies visited yet</p>
+                                                )}
                                             </div>
                                             <div className="bg-purple-50 p-6 rounded-lg">
                                                 <h3 className="text-lg font-semibold text-purple-800">Total Orders</h3>
-                                                <p className="text-3xl font-bold text-purple-600">{analyticsData.summary.totalOrders}</p>
+                                                <p className="text-3xl font-bold text-purple-600">
+                                                    {analyticsData.summary.totalOrders || '-'}
+                                                </p>
+                                                {analyticsData.summary.totalOrders === 0 && (
+                                                    <p className="text-sm text-purple-500 mt-1">No orders placed yet</p>
+                                                )}
                                             </div>
                                             <div className="bg-red-50 p-6 rounded-lg">
                                                 <h3 className="text-lg font-semibold text-red-800">Total Returns</h3>
-                                                <p className="text-3xl font-bold text-red-600">{analyticsData.summary.totalReturns}</p>
+                                                <p className="text-3xl font-bold text-red-600">
+                                                    {analyticsData.summary.totalReturns || '-'}
+                                                </p>
+                                                {analyticsData.summary.totalReturns === 0 && (
+                                                    <p className="text-sm text-red-500 mt-1">No returns yet</p>
+                                                )}
                                             </div>
                                         </div>
 

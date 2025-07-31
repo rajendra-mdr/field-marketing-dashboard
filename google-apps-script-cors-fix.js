@@ -56,6 +56,7 @@ function doPost(e) {
       }
       
       const rowData = [
+        data.data['Timestamp'] || new Date().toISOString(),
         data.data.Date || '',
         data.data['Officer Name'] || '',
         data.data['Planned Areas'] || '',
@@ -64,8 +65,7 @@ function doPost(e) {
         data.data['Pharmacies Visited'] || '',
         data.data['Orders'] || '',
         data.data['Returns'] || '',
-        data.data['Notes'] || '',
-        data.data['Timestamp'] || new Date().toISOString()
+        data.data['Notes'] || ''
       ];
       
       // Append the row
@@ -123,6 +123,7 @@ function doGet(e) {
       }
       
       const rowData = [
+        data['Timestamp'] || new Date().toISOString(),
         data.Date || '',
         data['Officer Name'] || '',
         data['Planned Areas'] || '',
@@ -131,8 +132,7 @@ function doGet(e) {
         data['Pharmacies Visited'] || '',
         data['Orders'] || '',
         data['Returns'] || '',
-        data['Notes'] || '',
-        data['Timestamp'] || new Date().toISOString()
+        data['Notes'] || ''
       ];
       
       // Append the row
@@ -268,6 +268,7 @@ function createSheetStructure() {
     
     // Define headers
     const headers = [
+      'Timestamp',
       'Date',
       'Officer Name',
       'Planned Areas',
@@ -276,26 +277,61 @@ function createSheetStructure() {
       'Pharmacies Visited',
       'Orders',
       'Returns',
-      'Notes',
-      'Timestamp'
+      'Notes'
     ];
     
     // Set headers
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     
     // Format header row
-    sheet.getRange(1, 1, 1, headers.length)
-      .setFontWeight('bold')
-      .setBackground('#4285f4')
-      .setFontColor('white');
+    const headerRange = sheet.getRange(1, 1, 1, headers.length);
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#4285f4');
+    headerRange.setFontColor('white');
     
-    // Auto-resize columns
-    headers.forEach((_, index) => {
-      sheet.autoResizeColumn(index + 1);
-    });
+    // Set specific column widths for better readability
+    sheet.setColumnWidth(1, 180); // Timestamp
+    sheet.setColumnWidth(2, 100); // Date
+    sheet.setColumnWidth(3, 150); // Officer Name
+    sheet.setColumnWidth(4, 200); // Planned Areas
+    sheet.setColumnWidth(5, 200); // Actual Areas
+    sheet.setColumnWidth(6, 300); // Doctors Visited
+    sheet.setColumnWidth(7, 200); // Pharmacies Visited
+    sheet.setColumnWidth(8, 250); // Orders
+    sheet.setColumnWidth(9, 200); // Returns
+    sheet.setColumnWidth(10, 300); // Notes
     
-    log('Sheet structure created successfully');
-    return { success: true, message: 'Sheet structure created' };
+    // Freeze header row
+    sheet.setFrozenRows(1);
+    
+    // Add data validation for Date column (column B)
+    const dateRange = sheet.getRange(2, 2, sheet.getMaxRows() - 1, 1);
+    const dateRule = SpreadsheetApp.newDataValidation()
+      .requireDate()
+      .setAllowInvalid(false)
+      .setHelpText('Please enter a valid date')
+      .build();
+    dateRange.setDataValidation(dateRule);
+    
+    // Add data validation for Officer Name (column C) - required field
+    const nameRange = sheet.getRange(2, 3, sheet.getMaxRows() - 1, 1);
+    const nameRule = SpreadsheetApp.newDataValidation()
+      .requireTextIsNotBlank()
+      .setAllowInvalid(false)
+      .setHelpText('Officer name is required')
+      .build();
+    nameRange.setDataValidation(nameRule);
+    
+    // Add alternating row colors for better readability
+    const dataRange = sheet.getRange(2, 1, sheet.getMaxRows() - 1, headers.length);
+    const alternatingColors = [];
+    for (let i = 0; i < sheet.getMaxRows() - 1; i++) {
+      alternatingColors.push(Array(headers.length).fill(i % 2 === 0 ? '#f8f9fa' : '#ffffff'));
+    }
+    dataRange.setBackgrounds(alternatingColors);
+    
+    log('Sheet structure created successfully with enhanced formatting');
+    return { success: true, message: 'Sheet structure created with enhanced formatting' };
   } catch (error) {
     log(`Error creating sheet structure: ${error.toString()}`);
     return { success: false, error: error.toString() };
