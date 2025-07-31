@@ -253,4 +253,6 @@ function createSheetStructure() {
     log(`Error creating sheet structure: ${error.toString()}`);
     return { success: false, error: error.toString() };
   }
-} 
+}
+
+ 
